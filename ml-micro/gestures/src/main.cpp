@@ -1,11 +1,13 @@
 #include <Arduino.h>
 #include "leds.hpp"
+#include "float.h"
 
 #include "tensorflow/lite/core/c/common.h"
 #include "tensorflow/lite/micro/micro_interpreter.h"
 #include "tensorflow/lite/micro/micro_log.h"
 #include "tensorflow/lite/micro/micro_mutable_op_resolver.h"
 #include "tensorflow/lite/micro/system_setup.h"
+#include "tensorflow/lite/micro/testing/micro_test.h"
 #include "tensorflow/lite/schema/schema_generated.h"
 #include "tensorflow/lite/micro/cortex_m_generic/debug_log_callback.h"
 
@@ -13,9 +15,11 @@
 #include "diode_calibration.hpp"
 #include "lstm_model.h"
 #include "lstm_model_quantized.h"
+#include "sine_model_quantized.h"
 
 namespace {
-  const tflite::Model* model = nullptr;
+  // const tflite::Model* model = nullptr;
+  // tflite::MicroInterpreter* interpreter;
   LightIntensityRegulator* regulator;
   using LstmOpResolver = tflite::MicroMutableOpResolver<6>;
 
@@ -24,13 +28,14 @@ namespace {
     TF_LITE_ENSURE_STATUS(op_resolver.AddUnidirectionalSequenceLSTM());
     TF_LITE_ENSURE_STATUS(op_resolver.AddQuantize());
     TF_LITE_ENSURE_STATUS(op_resolver.AddDequantize());
-    // TF_LITE_ENSURE_STATUS(op_resolver.AddRelu());
     TF_LITE_ENSURE_STATUS(op_resolver.AddSoftmax());
+    TF_LITE_ENSURE_STATUS(op_resolver.AddReshape());
+
+    // Below needed for non-quantized version:
     // TF_LITE_ENSURE_STATUS(op_resolver.AddShape());
     // TF_LITE_ENSURE_STATUS(op_resolver.AddStridedSlice());
     // TF_LITE_ENSURE_STATUS(op_resolver.AddPack());
     // TF_LITE_ENSURE_STATUS(op_resolver.AddFill());
-    TF_LITE_ENSURE_STATUS(op_resolver.AddReshape());
 
     return kTfLiteOk;
   }
@@ -41,59 +46,89 @@ void callback(const char* s) {
   Serial.print(s);
 }
 
-TfLiteStatus loadModel() {
-  RegisterDebugLogCallback(callback);
-
-  model = ::tflite::GetModel(lstm_model_quantized_tflite);
-  if (model->version() != TFLITE_SCHEMA_VERSION) {
-    MicroPrintf("Model provided is schema version %d not equal "
-        "to supported version %d.\n",
-        model->version(), TFLITE_SCHEMA_VERSION);
-  }
-
-  MicroPrintf("Model is loaded, version: %d\n", model->version());
-
-  delay(1000);
-
-  LstmOpResolver resolver;
-  if (RegisterOps(resolver) != kTfLiteOk) {
-    MicroPrintf("Something went wrong while registering operations.\n");
-    return kTfLiteError;
-  }
-
-  constexpr int kTensorArenaSize = 30 * 1024;
-  uint8_t tensor_arena[kTensorArenaSize];
-
-
-  tflite::MicroInterpreter interpreter(model, resolver, tensor_arena,
-                                       kTensorArenaSize);
-
-  if (interpreter.AllocateTensors() != kTfLiteOk) {
-    MicroPrintf("Allocate tensors failed.\n");
-    MicroPrintf("Initialization status is %d\n", interpreter.initialization_status());
-    return kTfLiteError;
-  }
-
+void printInterpreterDetails(tflite::MicroInterpreter interpreter) {
   // Obtain a pointer to the model's input tensor
-  TfLiteTensor* input = interpreter.input(0);
+  MicroPrintf("Interpreter input size: %d", interpreter.inputs_size());
+  MicroPrintf("Interpreter output size: %d", interpreter.outputs_size());
 
-  // Make sure the input has the properties we expect
-  if (input == nullptr) {
-    serialprintf("Input tensor is null.\n");
-    return kTfLiteError;
-  }
+  MicroPrintf("Interpreter arena_used_bytes: %d", interpreter.arena_used_bytes());
+  MicroPrintf("Interpreter initialization_status: %d\n", interpreter.initialization_status());
 
-  // Get the input quantization parameters
-  float input_scale = input->params.scale;
-  int input_zero_point = input->params.zero_point;
+  // MicroPrintf("Interpreter input name: %s", interpreter.input(0)->name);
+  MicroPrintf("Interpreter input allocation_type: %d", interpreter.input(0)->allocation_type);
+  MicroPrintf("Interpreter input bytes: %d", interpreter.input(0)->bytes);
+  MicroPrintf("Interpreter input type: %d", interpreter.input(0)->type);
 
-  // Obtain a pointer to the output tensor.
-  TfLiteTensor* output = interpreter.output(0);
+  // MicroPrintf("Interpreter output name: %s", interpreter.output(0)->name);
+  MicroPrintf("Interpreter output allocation_type: %d", interpreter.output(0)->allocation_type);
+  MicroPrintf("Interpreter output bytes: %d", interpreter.output(0)->bytes);
+  MicroPrintf("Interpreter output type: %d", interpreter.output(0)->type);
 
-  MicroPrintf("We got input_scale: %f and input_zero_point: %d\n", input_scale, input_zero_point);
+  MicroPrintf("We got input->dims->size: %d", interpreter.input(0)->dims->size);
+  MicroPrintf("input->dims->data[0]: %d", interpreter.input(0)->dims->data[0]);
+  MicroPrintf("input->dims->data[1]: %d", interpreter.input(0)->dims->data[1]);
+  MicroPrintf("input->dims->data[2]: %d", interpreter.input(0)->dims->data[2]);
+  MicroPrintf("Input type is: %d\n", interpreter.input(0)->type);
 
-  return kTfLiteOk;
+  MicroPrintf("We got output->dims->size: %d", interpreter.output(0)->dims->size);
+  MicroPrintf("output->dims->data[0]: %d", interpreter.output(0)->dims->data[0]);
+  MicroPrintf("output->dims->data[1]: %d", interpreter.output(0)->dims->data[1]);
+  MicroPrintf("Output type is: %d", interpreter.output(0)->type);
 }
+
+// TfLiteStatus loadModel(const tflite::Model* model, tflite::MicroInterpreter* interpreter) {
+//   #ifdef TF_LITE_STATIC_MEMORY
+//     MicroPrintf("TFLite Static Memory is enabled");
+//   #else
+//     MicroPrintf("TFLite Static Memory is disabled");
+//   #endif
+
+//   if (model->version() != TFLITE_SCHEMA_VERSION) {
+//     MicroPrintf("Model provided is schema version %d not equal "
+//         "to supported version %d.\n",
+//         model->version(), TFLITE_SCHEMA_VERSION);
+//   }
+
+//   MicroPrintf("Model is loaded, version: %d\n", model->version());
+
+//   LstmOpResolver resolver;
+//   if (RegisterOps(resolver) != kTfLiteOk) {
+//     MicroPrintf("Something went wrong while registering operations.\n");
+//     return kTfLiteError;
+//   }
+
+//   constexpr int kTensorArenaSize = 10 * 1024;
+//   uint8_t tensor_arena[kTensorArenaSize];
+
+//   interpreter = new tflite::MicroInterpreter(model, resolver, tensor_arena, kTensorArenaSize);
+
+//   // if (interpreter.AllocateTensors() != kTfLiteOk) {
+//   //   MicroPrintf("Allocate tensors failed.\n");
+//   //   MicroPrintf("Initialization status is %d\n", interpreter.initialization_status());
+//   //   return kTfLiteError;
+//   // }
+
+//   TfLiteTensor* input = interpreter.input(0);
+
+//   // Make sure the input has the properties we expect
+//   if (input == nullptr) {
+//     MicroPrintf("Input tensor is null.\n");
+//     return kTfLiteError;
+//   }
+
+//   // Obtain a pointer to the output tensor.
+//   TfLiteTensor* output = interpreter.output(0);
+
+//   // Make sure the output has the properties we expect
+//   if (output == nullptr) {
+//     MicroPrintf("Output tensor is null.\n");
+//     return kTfLiteError;
+//   }
+
+//   printInterpreterDetails(interpreter);
+
+//   return kTfLiteOk;
+// }
 
 const int AMOUNT_PDS = 3;
 const uint16_t SAMPLE_SIZE = 100;
@@ -111,14 +146,14 @@ float reshaped_buffer[RESHAPE_X][RESHAPE_Y];
 // Values for the detection of input
 uint16_t activation_calc_tick = 0;
 const uint16_t ACTIVATION_CALC_TICK_TRIGGER = 200;    // Defines how often the controller should recalibrate the ambient light threshold
-uint16_t activation_threshold = INT16_MAX;
+uint16_t activation_threshold = UINT16_MAX;
 
 // Booleans to control the state of the program
 int16_t inference_primed = -1;
 const uint16_t INFERENCE_PRIME_TICKS = SAMPLE_SIZE / 2;            // Defines how long it takes before we run inference after detecting an initial gesture input
 
 void getMinMax(uint16_t* min, uint16_t* max, uint16_t* source, size_t length) {
-  uint16_t calcMin = INT16_MAX;
+  uint16_t calcMin = UINT16_MAX;
   uint16_t calcMax = 0;
 
   for (uint16_t i=0; i < length; i++) {
@@ -153,8 +188,8 @@ uint16_t getAverage(uint16_t* buff, const size_t length_a, const size_t length_b
 template <typename T> void reshapeBuffer(T* dest, T* source, const size_t length_a, const size_t length_b, const size_t target_reshape_x, const size_t target_reshape_y) {
   uint16_t x = 0;
   uint16_t y = 0;
-  for (uint16 i=0; i < length_a; i++) {
-    for (uint16 j=0; j < length_b; j++) {
+  for (uint16_t i=0; i < length_a; i++) {
+    for (uint16_t j=0; j < length_b; j++) {
       dest[x * target_reshape_x + y] = source[i * length_b + j];
       x++;
       if (x == target_reshape_x) {
@@ -176,10 +211,10 @@ void normalizeBuffer(float* dest, uint16_t* source, const size_t length_a, const
     for (uint16_t j=0; j < length_b; j++) {
       // source[i][j] == source[i * length_b + j]
 
-      // serialprintf("Source: %d\n", source[i * length_b + j]);
+      //serialprintf("Source: %d\n", source[i * length_b + j]);
 
       float std = (float) (source[i * length_b + j] - min) / (float) (max - min);
-      // serialprintf("Std: %f\n", std);
+      //serialprintf("Std: %f\n", std);
       
       dest[i * length_b + j] = std;
     }
@@ -208,8 +243,6 @@ bool calculateBelowThreshold(uint16_t* buff, const size_t length_a, const size_t
   return true;
 }
 
-
-
 // Buffer the current photoDiode values
 void bufferPhotoDiodes(uint16_t* dest, const size_t buf_size) {
   const unsigned long start = micros();
@@ -223,36 +256,28 @@ void bufferPhotoDiodes(uint16_t* dest, const size_t buf_size) {
   }
 }
 
+// Find the maximum of a one dimensional buffer
+template <typename T> int getMax(T* buff, const size_t length) {
+  T maxValue = -1;
+  int maxIndex = -1;
+  for (uint16_t i = 0; i < length; i++) {
+    MicroPrintf("%f", buff[i]);
+    if (buff[i] > maxValue) {
+      maxValue = buff[i];
+      maxIndex = i;
+    }
+  }
 
-void mainLoop() {
+  return maxIndex;
+}
+
+
+void mainLoop(tflite::MicroInterpreter interpreter) {
   shiftWindow((uint16_t*) buffer, AMOUNT_PDS, SAMPLE_SIZE);
   bufferPhotoDiodes((uint16_t*) buffer, SAMPLE_SIZE);
-  
-  // for (uint16_t i = 0; i < AMOUNT_PDS; i++) {
-  //   Serial.println(buffer[i][SAMPLE_SIZE - 1]);
-  //   // for (uint16_t j = 0; j < SAMPLE_SIZE; j++) {
-  //   //   Serial.print(buffer[i][j]);
-  //   //   Serial.print(", ");
-  //   // }
-  //   // Serial.println();
-  // }
-
-  // Normalize values in the buffer per photodiode from 0-1023 to 0.00-1.00 (necessary?)
-  //normalizeBuffer((float*) normalized_buffer, (uint16_t*) buffer, AMOUNT_PDS, SAMPLE_SIZE);
-  
-  // We need to reshape the buffer from (100, 3) to (20, 15)
-  //reshapeBuffer((float*) reshaped_buffer, (float*) normalized_buffer, AMOUNT_PDS, SAMPLE_SIZE, RESHAPE_X, RESHAPE_Y);
-
-  // for (int i=0; i < (int) RESHAPE_X; i++) {
-  //   for (int j=0; j < (int) RESHAPE_Y; j++) {
-  //     Serial.print(reshaped_buffer[i][j]);
-  //     Serial.print(", ");
-  //   }
-  //   Serial.println();
-  // }
 
   if (inference_primed == -1 && calculateBelowThreshold((uint16_t*) buffer, AMOUNT_PDS, SAMPLE_SIZE, 10, activation_threshold)) {
-    serialprintf("Priming the model to run in %d ticks...\n", INFERENCE_PRIME_TICKS);
+    MicroPrintf("Priming the model to run in %d ticks...", INFERENCE_PRIME_TICKS);
     inference_primed = INFERENCE_PRIME_TICKS;
   }
 
@@ -261,7 +286,62 @@ void mainLoop() {
   }
 
   if (inference_primed == 0) {
-    serialprintf("Running inference!\n");
+    MicroPrintf("Running inference!");
+    TfLiteTensor* input = interpreter.input(0);
+    TfLiteTensor* output = interpreter.output(0);
+    
+    // Normalize values in the buffer per photodiode from 0-1023 to 0.00-1.00 (necessary?)
+    MicroPrintf("Normalizing buffer...");
+    normalizeBuffer((float*) normalized_buffer, (uint16_t*) buffer, AMOUNT_PDS, SAMPLE_SIZE);
+  
+    // We need to reshape the buffer from (100, 3) to (20, 15)
+    MicroPrintf("Reshaping buffer...");
+    reshapeBuffer((float*) reshaped_buffer, (float*) normalized_buffer, AMOUNT_PDS, SAMPLE_SIZE, RESHAPE_X, RESHAPE_Y);
+
+    MicroPrintf("Copying reshaped buffer to tensor...");
+    memcpy(input->data.f, &reshaped_buffer, RESHAPE_Y * RESHAPE_X * sizeof(float));
+
+    // for (uint16_t i = 0; i < AMOUNT_PDS; i++) {
+    //   //Serial.println(buffer[i][SAMPLE_SIZE - 1]);
+    //   for (uint16_t j = 0; j < SAMPLE_SIZE; j++) {
+    //     Serial.print(normalized_buffer[i][j]);
+    //     Serial.print(", ");
+    //   }
+    //   Serial.println();
+    // }
+
+    // MicroPrintf("==================== Printing reshaped data ========================");
+    // for (uint16_t i=0; i < RESHAPE_X; i++) {
+    //   for (uint16_t j=0; j < RESHAPE_Y; j++) {
+    //     Serial.print(((float*) reshaped_buffer)[i * RESHAPE_Y + j]);
+    //     Serial.print(", ");
+    //   }
+    //   Serial.println();
+    // }
+    // MicroPrintf("====================================================================");
+
+
+    // MicroPrintf("==================== Printing reshaped data from input tensor ========================");
+    // for (uint16_t i=0; i < RESHAPE_X; i++) {
+    //   for (uint16_t j=0; j < RESHAPE_Y; j++) {
+    //     Serial.print(((float*) input->data.f)[i * RESHAPE_Y + j]);
+    //     Serial.print(", ");
+    //   }
+    //   Serial.println();
+    // }
+    // MicroPrintf("====================================================================");
+    
+
+    printInterpreterDetails(interpreter);
+    MicroPrintf("Calling Invoke()!");
+    TfLiteStatus invoke_status = interpreter.Invoke();
+    if (invoke_status != kTfLiteOk) {
+      MicroPrintf("Invoke failed");
+      return;
+    }
+
+    int res = getMax(output->data.f, output->dims->data[1]);
+    MicroPrintf("Output: %d", res);
   }
 
   activation_calc_tick++;
@@ -292,10 +372,10 @@ void setup() {
   setupLeds();
 
   // Allow the serial monitor to attach
+  RegisterDebugLogCallback(callback);
   delay(1000);
+
   tflite::InitializeTarget();
-  loadModel();
-  MicroPrintf("Initializing model finished!\n");
   regulator = new LightIntensityRegulator();
 
   setLedBlue();
@@ -306,5 +386,41 @@ void setup() {
 }
 
 void loop() {
-  mainLoop();
+  #ifdef TF_LITE_STATIC_MEMORY
+    MicroPrintf("TFLite Static Memory is enabled");
+  #else
+    MicroPrintf("TFLite Static Memory is disabled");
+  #endif
+
+  const tflite::Model* model = tflite::GetModel(lstm_model_quantized_tflite);
+  if (model->version() != TFLITE_SCHEMA_VERSION) {
+    MicroPrintf("Model provided is schema version %d not equal "
+        "to supported version %d.\n",
+        model->version(), TFLITE_SCHEMA_VERSION);
+  }
+
+  MicroPrintf("Model is loaded, version: %d\n", model->version());
+
+  LstmOpResolver resolver;
+  if (RegisterOps(resolver) != kTfLiteOk) {
+    MicroPrintf("Something went wrong while registering operations.\n");
+    return;
+  }
+
+  constexpr int kTensorArenaSize = 12 * 1024;
+  uint8_t tensor_arena[kTensorArenaSize];
+
+  tflite::MicroInterpreter interpreter(model, resolver, tensor_arena, kTensorArenaSize);
+
+  if (interpreter.AllocateTensors() != kTfLiteOk) {
+    MicroPrintf("Allocate tensors failed.\n");
+    MicroPrintf("Initialization status is %d\n", interpreter.initialization_status());
+    return;
+  }
+  
+  MicroPrintf("Initializing model finished!\n");
+
+  while (true) {
+    mainLoop(interpreter);
+  }
 }

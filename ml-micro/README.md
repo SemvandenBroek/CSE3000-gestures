@@ -1,0 +1,1 @@
+Beware, the libraries used for the microcontroller code are pulled in using git submodules. Make sure to run `git submodule update --init --recursive` after cloning this project, as well as `git submodule update` whenever the reference of a submodule has been changed upstream.
