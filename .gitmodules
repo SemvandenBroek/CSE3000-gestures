@@ -10,3 +10,6 @@
 [submodule "ml-micro/lib/pigweed"]
 	path = ml-micro/lib/pigweed
 	url = https://github.com/google/pigweed.git
+[submodule "ml-micro/lib/tflite-micro"]
+	path = ml-micro/lib/tflite-micro
+	url = https://github.com/tensorflow/tflite-micro.git
