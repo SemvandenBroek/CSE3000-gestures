@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "ml-micro"
+		},
+		{
+			"path": "../CSE3000-DataCollection"
+		}
+	],
+	"settings": {}
+}

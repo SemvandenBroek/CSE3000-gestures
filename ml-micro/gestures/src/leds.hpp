@@ -1,5 +1,11 @@
 #include "Arduino.h"
 
+// Onboard LED off
+void setLedOff() {
+  digitalWrite(LEDR, HIGH);
+  digitalWrite(LEDG, HIGH);
+  digitalWrite(LEDB, HIGH);
+}
 
 // Onboard LED to red
 void setLedRed() {
@@ -51,6 +57,7 @@ void setupLeds() {
   pinMode(LEDR, OUTPUT);
   pinMode(LEDG, OUTPUT);
   pinMode(LEDB, OUTPUT);
+  setLedOff();
 }
 
 enum LedColor {
@@ -60,7 +67,8 @@ enum LedColor {
   ORANGE,
   YELLOW,
   PURPLE,
-  WHITE
+  WHITE,
+  OFF
 };
 
 void setLed(LedColor color) {
@@ -85,6 +93,9 @@ void setLed(LedColor color) {
       break;
     case WHITE:
       setLedWhite();
+      break;
+    case OFF:
+      setLedOff();
       break;
   }
 }

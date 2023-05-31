@@ -1,0 +1,23 @@
+{
+	"folders": [
+		{
+			"name": "CSE3000-DataCollection",
+			"path": "../CSE3000-DataCollection"
+		},
+		{
+			"name": "CSE3000-Gesture-Recognition",
+			"path": "../CSE3000-Gesture-Recognition"
+		},
+		{
+			"name": "data_collector",
+			"path": "../CSE3000-DataCollection/data_collector"
+		},
+		{
+			"path": "ml-micro"
+		},
+		{
+			"path": "\\\\wsl.localhost\\Ubuntu-20.04\\home\\sem\\CSE3000"
+		}
+	],
+	"settings": {}
+}
