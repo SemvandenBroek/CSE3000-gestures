@@ -1,0 +1,12 @@
+[submodule "ml-micro/lib/flatbuffers"]
+	path = ml-micro/lib/flatbuffers
+	url = https://github.com/google/flatbuffers.git
+[submodule "ml-micro/lib/gemmlowp"]
+	path = ml-micro/lib/gemmlowp
+	url = https://github.com/google/gemmlowp.git
+[submodule "ml-micro/lib/kissfft"]
+	path = ml-micro/lib/kissfft
+	url = https://github.com/mborgerding/kissfft.git
+[submodule "ml-micro/lib/pigweed"]
+	path = ml-micro/lib/pigweed
+	url = https://github.com/google/pigweed.git
