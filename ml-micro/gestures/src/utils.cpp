@@ -41,7 +41,7 @@ uint16_t getAverage(uint16_t *buff, const size_t length_a, const size_t length_b
         accumulator += buff[i];
     }
 
-    // printf("Accumulated value in getAverage(): %d ")
+    // mlutils::serialprintf("Accumulated value in getAverage(): %d ")
 
     return accumulator / (length_a * length_b);
 }
@@ -94,33 +94,33 @@ bool calculateBelowThreshold(uint16_t *buff, const size_t buf_size, const size_t
 
 void printInterpreterDetails(tflite::MicroInterpreter *interpreter) {
     // Obtain a pointer to the model's input tensor
-    printf("Interpreter input size: %d", interpreter->inputs_size());
-    printf("Interpreter output size: %d", interpreter->outputs_size());
+    mlutils::serialprintf("Interpreter input size: %d\n", interpreter->inputs_size());
+    mlutils::serialprintf("Interpreter output size: %d\n", interpreter->outputs_size());
 
-    printf("Interpreter arena_used_bytes: %d", interpreter->arena_used_bytes());
-    printf("Interpreter initialization_status: %d\n", interpreter->initialization_status());
+    mlutils::serialprintf("Interpreter arena_used_bytes: %d\n", interpreter->arena_used_bytes());
+    mlutils::serialprintf("Interpreter initialization_status: %d\n", interpreter->initialization_status());
 
-    // printf("Interpreter input name: %s", interpreter.input(0)->name);
-    printf("Interpreter input allocation_type: %d", interpreter->input(0)->allocation_type);
-    printf("Interpreter input bytes: %d", interpreter->input(0)->bytes);
-    printf("Interpreter input type: %d", interpreter->input(0)->type);
+    // mlutils::serialprintf("Interpreter input name: %s", interpreter.input(0)->name);
+    mlutils::serialprintf("Interpreter input allocation_type: %d\n", interpreter->input(0)->allocation_type);
+    mlutils::serialprintf("Interpreter input bytes: %d\n", interpreter->input(0)->bytes);
+    mlutils::serialprintf("Interpreter input type: %d\n", interpreter->input(0)->type);
 
-    // printf("Interpreter output name: %s", interpreter.output(0)->name);
-    printf("Interpreter output allocation_type: %d", interpreter->output(0)->allocation_type);
-    printf("Interpreter output bytes: %d", interpreter->output(0)->bytes);
-    printf("Interpreter output type: %s", TfLiteTypeGetName(interpreter->output(0)->type));
+    // mlutils::serialprintf("Interpreter output name: %s", interpreter.output(0)->name);
+    mlutils::serialprintf("Interpreter output allocation_type: %d\n", interpreter->output(0)->allocation_type);
+    mlutils::serialprintf("Interpreter output bytes: %d\n", interpreter->output(0)->bytes);
+    mlutils::serialprintf("Interpreter output type: %s\n", TfLiteTypeGetName(interpreter->output(0)->type));
 
-    printf("We got input->dims->size: %d", interpreter->input(0)->dims->size);
+    mlutils::serialprintf("We got input->dims->size: %d\n", interpreter->input(0)->dims->size);
     for (uint16_t i = 0; i < interpreter->input(0)->dims->size; i++) {
-        printf("input->dims->data[%d]: %d", i, interpreter->input(0)->dims->data[i]);
+        mlutils::serialprintf("\tinput->dims->data[%d]: %d\n", i, interpreter->input(0)->dims->data[i]);
     }
 
-    printf("Input type is: %s\n", TfLiteTypeGetName(interpreter->input(0)->type));
+    mlutils::serialprintf("Input type is: %s\n", TfLiteTypeGetName(interpreter->input(0)->type));
 
-    printf("We got output->dims->size: %d", interpreter->output(0)->dims->size);
-    printf("output->dims->data[0]: %d", interpreter->output(0)->dims->data[0]);
-    printf("output->dims->data[1]: %d", interpreter->output(0)->dims->data[1]);
-    printf("Output type is: %s", TfLiteTypeGetName(interpreter->output(0)->type));
+    mlutils::serialprintf("We got output->dims->size: %d\n", interpreter->output(0)->dims->size);
+    mlutils::serialprintf("\toutput->dims->data[0]: %d\n", interpreter->output(0)->dims->data[0]);
+    mlutils::serialprintf("\toutput->dims->data[1]: %d\n", interpreter->output(0)->dims->data[1]);
+    mlutils::serialprintf("Output type is: %s\n", TfLiteTypeGetName(interpreter->output(0)->type));
 }
 
 template int mlutils::getMaxIndex(float *buff, const size_t length);
@@ -131,8 +131,8 @@ int getMaxIndex(T *buff, const size_t length) {
     T maxValue = -1;
     int maxIndex = -1;
     for (uint16_t i = 0; i < length; i++) {
-        printf("%.4f\n", buff[i]);
-        // printf("%d\n", buff[i]);
+        mlutils::serialprintf("%.4f\n", buff[i]);
+        // mlutils::serialprintf("%d\n", buff[i]);
         if (buff[i] > maxValue) {
             maxValue = buff[i];
             maxIndex = i;

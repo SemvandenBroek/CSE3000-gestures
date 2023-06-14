@@ -78,17 +78,17 @@ void bufferPhotoDiodes(uint16_t* dest, const size_t buf_size) {
 void setupModel() {
   const tflite::Model* model = tflite::GetModel(lstm_model_quantized_tflite);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
-    printf(
+    mlutils::serialprintf(
         "Model provided is schema version %d not equal "
         "to supported version %d.\n",
         model->version(), TFLITE_SCHEMA_VERSION);
   }
 
-  printf("Model is loaded, version: %d\n", model->version());
+  mlutils::serialprintf("Model is loaded, version: %d\n", model->version());
 
   static LstmOpResolver resolver;
   if (RegisterOps(resolver) != kTfLiteOk) {
-    printf("Something went wrong while registering operations.\n");
+    mlutils::serialprintf("Something went wrong while registering operations.\n");
     return;
   }
 
@@ -96,18 +96,18 @@ void setupModel() {
   interpreter = &static_interpreter;
 
   if (interpreter->AllocateTensors() != kTfLiteOk) {
-    printf("Allocate tensors failed.\n");
-    printf("Initialization status is %d\n", interpreter->initialization_status());
+    mlutils::serialprintf("Allocate tensors failed.\n");
+    mlutils::serialprintf("Initialization status is %d\n", interpreter->initialization_status());
     return;
   }
 
-  printf("Initializing model finished!\n");
-  printf("Initialization status is %d\n", interpreter->initialization_status());
-  printf("MicroInterpreter location: %p\n", interpreter);
+  mlutils::serialprintf("Initializing model finished!\n");
+  mlutils::serialprintf("Initialization status is %d\n", interpreter->initialization_status());
+  mlutils::serialprintf("MicroInterpreter location: %p\n", interpreter);
 }
 
 void invokeModel() {
-  printf("Running inference!");
+  mlutils::serialprintf("Running inference!\n");
   TfLiteTensor* input = interpreter->input(0);
   TfLiteTensor* output = interpreter->output(0);
 
@@ -118,19 +118,19 @@ void invokeModel() {
   // Serial.println();
 
   // Normalize values in the buffer per photodiode from 0-1023 to 0.00-1.00 (necessary?)
-  printf("Normalizing buffer...");
+  mlutils::serialprintf("Normalizing buffer...\n");
   mlutils::normalizeBuffer((float*)normalized_buffer, (uint16_t*)buffer, AMOUNT_PDS * SAMPLE_SIZE);
 
   // We need to reshape the buffer from (100, 3) to (20, 15)
-  // printf("Reshaping buffer...");
+  // mlutils::serialprintf("Reshaping buffer...");
   // reshapeBuffer((float*) reshaped_buffer, (float*) normalized_buffer, AMOUNT_PDS, SAMPLE_SIZE, RESHAPE_X, RESHAPE_Y);
 
-  // printf("Copying reshaped buffer to tensor...");
+  // mlutils::serialprintf("Copying reshaped buffer to tensor...");
   // memcpy(input->data.f, &reshaped_buffer, RESHAPE_Y * RESHAPE_X * sizeof(float));
 
   // floatArrayToIntArray((float*) normalized_buffer, (int8_t*) int_buffer, AMOUNT_PDS * SAMPLE_SIZE);
 
-  printf("Copying normalized buffer to tensor...");
+  mlutils::serialprintf("Copying normalized buffer to tensor...\n");
   memcpy(input->data.f, &test_buffer, AMOUNT_PDS * SAMPLE_SIZE * sizeof(float));
 
   for (uint16_t i = 0; i < AMOUNT_PDS * SAMPLE_SIZE; i++) {
@@ -139,10 +139,10 @@ void invokeModel() {
   }
   mlutils::serialprintf("\n");
 
-  mlutils::printInterpreterDetails(interpreter);
-  printf("Resetting TFLite interpreter\n");
+  // mlutils::printInterpreterDetails(interpreter);
+  mlutils::serialprintf("Resetting TFLite interpreter\n");
   interpreter->Reset();
-  printf("Invoking TFLite interpreter\n");
+  mlutils::serialprintf("Invoking TFLite interpreter\n");
 
   const unsigned long start = micros();
   TfLiteStatus invoke_status = interpreter->Invoke();
@@ -151,15 +151,24 @@ void invokeModel() {
   mlutils::serialprintf("Model invocation took: %.1f ms\n", (float)(end - start) / 1000);
 
   if (invoke_status != kTfLiteOk) {
-    printf("Invoke failed");
+    mlutils::serialprintf("Invoke failed\n");
     return;
   }
 
   int res = mlutils::getMaxIndex(output->data.f, output->dims->data[1]);
-  printf("Final model output: %d", res);
+  mlutils::serialprintf("Final model output: %d\n", res);
 
   // After invocation recalc the ambient light 50 ticks later
   activation_calc_tick = ACTIVATION_CALC_TICK_TRIGGER - SAMPLE_SIZE / 2;
+  setLedOff();
+}
+
+void recalculateAmbient() {
+  // regulator->recalibrate();
+  setLedOrange();
+  activation_threshold = mlutils::getAverage((uint16_t*)buffer, AMOUNT_PDS, SAMPLE_SIZE);
+  activation_calc_tick = 0;
+  mlutils::serialprintf("Calculating current ambient average: %d\n", activation_threshold);
   setLedOff();
 }
 
@@ -173,8 +182,13 @@ void mainLoop() {
   // }
   // Serial.println();
 
+  activation_calc_tick++;
+  if (activation_calc_tick >= ACTIVATION_CALC_TICK_TRIGGER) {
+    recalculateAmbient();
+  }
+
   if (inference_primed == -1 && mlutils::calculateBelowThreshold((uint16_t*)buffer, AMOUNT_PDS * SAMPLE_SIZE, 5, 10, activation_threshold)) {
-    printf("Priming the model to run in %d ticks...", INFERENCE_PRIME_TICKS);
+    mlutils::serialprintf("Priming the model to run in %d ticks...\n", INFERENCE_PRIME_TICKS);
     setLedGreen();
     inference_primed = INFERENCE_PRIME_TICKS;
   }
@@ -185,16 +199,6 @@ void mainLoop() {
 
   if (inference_primed == 0) {
     invokeModel();
-  }
-
-  activation_calc_tick++;
-  if (activation_calc_tick >= ACTIVATION_CALC_TICK_TRIGGER) {
-    // regulator->recalibrate();
-    setLedOrange();
-    activation_threshold = mlutils::getAverage((uint16_t*)buffer, AMOUNT_PDS, SAMPLE_SIZE);
-    activation_calc_tick = 0;
-    mlutils::serialprintf("Calculating current ambient average: %d\n", activation_threshold);
-    setLedOff();
   }
 }
 
@@ -207,22 +211,20 @@ void setup() {
   delay(1000);
 
 #ifdef TF_LITE_STATIC_MEMORY
-  printf("TFLite Static Memory is enabled");
+  mlutils::serialprintf("TFLite Static Memory is enabled");
 #else
-  printf("TFLite Static Memory is disabled");
+  mlutils::serialprintf("TFLite Static Memory is disabled");
 #endif
 
   regulator = new LightIntensityRegulator();
 
   tflite::InitializeTarget();
-  setupModel();
-
-  setLedBlue();
-  delay(500);
   setLedRed();
+  setupModel();
+  setLedBlue();
 
-  invokeModel();
-  activation_threshold = mlutils::getAverage((uint16_t*)buffer, AMOUNT_PDS, SAMPLE_SIZE);
+  // Run inference once we have a full buffer
+  inference_primed = SAMPLE_SIZE;
 }
 
 void loop() {
