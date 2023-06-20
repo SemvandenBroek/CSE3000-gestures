@@ -21,6 +21,7 @@ const size_t RESHAPE_X = 20;
 const size_t RESHAPE_Y = 15;
 
 const uint16_t INFERENCE_PRIME_TICKS = SAMPLE_SIZE / 2;  // Defines how long it takes before we run inference after detecting an initial gesture input
+const uint16_t INFERENCE_TIMEOUT_TICKS = 500;                  // Amount of ticks we wait before inference can be rerun
 const uint16_t ACTIVATION_CALC_TICK_TRIGGER = 2000;      // Defines how often the controller should recalibrate the ambient light threshold
 
 const float test_buffer[SAMPLE_SIZE * AMOUNT_PDS] = {

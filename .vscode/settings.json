@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "format": "cpp",
+        "stop_token": "cpp",
+        "xiosbase": "cpp",
+        "*.inc": "cpp"
+    }
+}

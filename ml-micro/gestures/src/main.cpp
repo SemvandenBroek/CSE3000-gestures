@@ -14,16 +14,17 @@
 #include "constants.h"
 #include "diode_calibration.hpp"
 #include "lstm_model.h"
-#include "lstm_model_quantized.h"
-#include "sine_model_quantized.h"
+// #include "lstm_model_quantized.h"
+#include "conv_lstm_model_quantized.h"
+// #include "sine_model_quantized.h"
 
 namespace {
 tflite::MicroInterpreter* interpreter;
-constexpr int kTensorArenaSize = 15 * 1024;
+constexpr int kTensorArenaSize = 35 * 1024;
 uint8_t tensor_arena[kTensorArenaSize];
 
 LightIntensityRegulator* regulator;
-using LstmOpResolver = tflite::MicroMutableOpResolver<6>;
+using LstmOpResolver = tflite::MicroMutableOpResolver<8>;
 
 // Buffers to store sensor data
 uint16_t buffer[AMOUNT_PDS][SAMPLE_SIZE];
@@ -37,6 +38,7 @@ uint16_t activation_threshold = UINT16_MAX;
 
 // Tick counters to control the state of the program
 int16_t inference_primed = -1;
+int16_t inference_timeout = -1;
 
 TfLiteStatus RegisterOps(LstmOpResolver& op_resolver) {
   TF_LITE_ENSURE_STATUS(op_resolver.AddFullyConnected());
@@ -49,7 +51,8 @@ TfLiteStatus RegisterOps(LstmOpResolver& op_resolver) {
 
   // Below needed for non-quantized version:
   // TF_LITE_ENSURE_STATUS(op_resolver.AddShape());
-  // TF_LITE_ENSURE_STATUS(op_resolver.AddStridedSlice());
+  TF_LITE_ENSURE_STATUS(op_resolver.AddStridedSlice());
+  TF_LITE_ENSURE_STATUS(op_resolver.AddConv2D());
   // TF_LITE_ENSURE_STATUS(op_resolver.AddPack());
   // TF_LITE_ENSURE_STATUS(op_resolver.AddFill());
 
@@ -76,7 +79,7 @@ void bufferPhotoDiodes(uint16_t* dest, const size_t buf_size) {
 }
 
 void setupModel() {
-  const tflite::Model* model = tflite::GetModel(lstm_model_quantized_tflite);
+  const tflite::Model* model = tflite::GetModel(conv_lstm_model_quantized_tflite);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
     mlutils::serialprintf(
         "Model provided is schema version %d not equal "
@@ -131,7 +134,7 @@ void invokeModel() {
   // floatArrayToIntArray((float*) normalized_buffer, (int8_t*) int_buffer, AMOUNT_PDS * SAMPLE_SIZE);
 
   mlutils::serialprintf("Copying normalized buffer to tensor...\n");
-  memcpy(input->data.f, &test_buffer, AMOUNT_PDS * SAMPLE_SIZE * sizeof(float));
+  memcpy(input->data.f, &normalized_buffer, AMOUNT_PDS * SAMPLE_SIZE * sizeof(float));
 
   for (uint16_t i = 0; i < AMOUNT_PDS * SAMPLE_SIZE; i++) {
     mlutils::serialprintf("%0.2f", ((float*)input->data.f)[i]);
@@ -164,12 +167,22 @@ void invokeModel() {
 }
 
 void recalculateAmbient() {
-  // regulator->recalibrate();
   setLedOrange();
+
+  int resistance_before = regulator->get_resistance();
+  
+  regulator->recalibrate();
+  mlutils::serialprintf("Resistance calibration from: %d to: %d\n", resistance_before, regulator->get_resistance());
+  
   activation_threshold = mlutils::getAverage((uint16_t*)buffer, AMOUNT_PDS, SAMPLE_SIZE);
   activation_calc_tick = 0;
   mlutils::serialprintf("Calculating current ambient average: %d\n", activation_threshold);
-  setLedOff();
+
+  if (inference_timeout >= 0) {
+    setLedRed();
+  } else {
+    setLedOff();
+  }
 }
 
 void mainLoop() {
@@ -187,7 +200,7 @@ void mainLoop() {
     recalculateAmbient();
   }
 
-  if (inference_primed == -1 && mlutils::calculateBelowThreshold((uint16_t*)buffer, AMOUNT_PDS * SAMPLE_SIZE, 5, 10, activation_threshold)) {
+  if (inference_primed == -1 && inference_timeout == -1 && mlutils::calculateBelowThreshold((uint16_t*)buffer, AMOUNT_PDS * SAMPLE_SIZE, 5, 10, activation_threshold)) {
     mlutils::serialprintf("Priming the model to run in %d ticks...\n", INFERENCE_PRIME_TICKS);
     setLedGreen();
     inference_primed = INFERENCE_PRIME_TICKS;
@@ -197,8 +210,18 @@ void mainLoop() {
     inference_primed--;
   }
 
+  if (inference_timeout >= 0) {
+    inference_timeout--;
+  }
+
+  if (inference_timeout == 0) {
+    setLedOff();
+  }
+
   if (inference_primed == 0) {
     invokeModel();
+    setLedRed();
+    inference_timeout = INFERENCE_TIMEOUT_TICKS;
   }
 }
 

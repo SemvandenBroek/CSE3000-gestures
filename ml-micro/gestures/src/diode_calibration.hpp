@@ -163,10 +163,8 @@ class LightIntensityRegulator {
       // Loop trough available resistors until the value drops enough
       while (reading > MAXIMUM_THRESHOLD) {
         if (!this->resistorDown()) {
-          // Required resistor does not exist, set red LED
-          digitalWrite(22, LOW);
+          // Required resistor does not exist, fault
           return;
-
         } else {
           // Get new reading
           reading = this->get_reading();
@@ -176,17 +174,14 @@ class LightIntensityRegulator {
       // Reading is now low enough for accurate sensing.
       if (reading < MINIMUM_THRESHOLD) {
         if (!this->resistorUp()) {
-          // Required resistor does not exist, set red LED
-          digitalWrite(22, LOW);
+          // Required resistor does not exist, fault
           return;
         } else {
-          // System maybe configured correctly, set blue LED
-          digitalWrite(24, LOW);
+          // System maybe configured correctly, fault
           return;
         }
       } else {
-        // System configured correctly, set green LED
-        digitalWrite(23, LOW);
+        // System configured correctly, no fault
         return;
       }
     }
