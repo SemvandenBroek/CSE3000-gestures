@@ -14,13 +14,24 @@
 #include "constants.h"
 #include "diode_calibration.hpp"
 #include "lstm_model.h"
-// #include "lstm_model_quantized.h"
-#include "conv_lstm_model_quantized.h"
-// #include "sine_model_quantized.h"
+
+// #include "models/conv_lstm_16_quantized.h"
+// #include "models/conv_lstm_32_quantized.h"
+// #include "models/conv_lstm_64_quantized.h"
+// #include "models/conv_lstm_128_quantized.h"
+
+// #include "models/lstm_16_quantized.h"
+// #include "models/lstm_32_quantized.h"
+// #include "models/lstm_64_quantized.h"
+// #include "models/lstm_128_quantized.h"
+
+// #include "models/lstm_64_D_64_quantized.h"
+// #include "models/lstm_64_D_128_quantized.h"
+
 
 namespace {
 tflite::MicroInterpreter* interpreter;
-constexpr int kTensorArenaSize = 35 * 1024;
+constexpr int kTensorArenaSize = 41 * 1024;
 uint8_t tensor_arena[kTensorArenaSize];
 
 LightIntensityRegulator* regulator;
@@ -30,7 +41,6 @@ using LstmOpResolver = tflite::MicroMutableOpResolver<8>;
 uint16_t buffer[AMOUNT_PDS][SAMPLE_SIZE];
 uint16_t dummy_buffer[AMOUNT_PDS][SAMPLE_SIZE];
 float normalized_buffer[AMOUNT_PDS][SAMPLE_SIZE];
-float reshaped_buffer[RESHAPE_X][RESHAPE_Y];
 
 // Values for the detection of input
 uint16_t activation_calc_tick = ACTIVATION_CALC_TICK_TRIGGER - SAMPLE_SIZE;
@@ -79,7 +89,7 @@ void bufferPhotoDiodes(uint16_t* dest, const size_t buf_size) {
 }
 
 void setupModel() {
-  const tflite::Model* model = tflite::GetModel(conv_lstm_model_quantized_tflite);
+  const tflite::Model* model = tflite::GetModel(lstm_64_D_128_quantized_tflite);
   if (model->version() != TFLITE_SCHEMA_VERSION) {
     mlutils::serialprintf(
         "Model provided is schema version %d not equal "
@@ -124,10 +134,6 @@ void invokeModel() {
   mlutils::serialprintf("Normalizing buffer...\n");
   mlutils::normalizeBuffer((float*)normalized_buffer, (uint16_t*)buffer, AMOUNT_PDS * SAMPLE_SIZE);
 
-  // We need to reshape the buffer from (100, 3) to (20, 15)
-  // mlutils::serialprintf("Reshaping buffer...");
-  // reshapeBuffer((float*) reshaped_buffer, (float*) normalized_buffer, AMOUNT_PDS, SAMPLE_SIZE, RESHAPE_X, RESHAPE_Y);
-
   // mlutils::serialprintf("Copying reshaped buffer to tensor...");
   // memcpy(input->data.f, &reshaped_buffer, RESHAPE_Y * RESHAPE_X * sizeof(float));
 
@@ -143,8 +149,8 @@ void invokeModel() {
   mlutils::serialprintf("\n");
 
   // mlutils::printInterpreterDetails(interpreter);
-  mlutils::serialprintf("Resetting TFLite interpreter\n");
-  interpreter->Reset();
+  // mlutils::serialprintf("Resetting TFLite interpreter\n");
+  // interpreter->Reset();
   mlutils::serialprintf("Invoking TFLite interpreter\n");
 
   const unsigned long start = micros();
