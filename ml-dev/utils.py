@@ -430,19 +430,19 @@ def compile_tflite(model: keras.Sequential | None, shape: list, save_dir: str, n
         # This is important, let's fix the input size.
         batch_size = 1
         concrete_func = run_model.get_concrete_function(
-            tf.TensorSpec([batch_size] + shape, model.inputs[0].dtype))
+            tf.TensorSpec((1, 100, 3), model.inputs[0].dtype))
 
         if not os.path.exists(save_dir):
             os.mkdir(save_dir)
 
-        model.save(tf_save_path, signatures=concrete_func)
+        model.save(tf_save_path, save_format="tf", signatures=concrete_func)
 
     if not os.path.exists(save_dir):
         raise Exception("Could not load model, set retrain=True")
 
     # Convert to tflite model
     converter = tf.lite.TFLiteConverter.from_saved_model(tf_save_path)
-    # converter = tf.lite.TFLiteConverter.from_keras_model(model_lstm_stateless)
+    # converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS]
     tflite_model = converter.convert()
 
@@ -452,11 +452,18 @@ def compile_tflite(model: keras.Sequential | None, shape: list, save_dir: str, n
     converter.experimental_new_converter = True
 
     def representative_dataset_generator():
-        for value in representative_dataset:
+        for value in representative_dataset[0:500]:
+            value = np.expand_dims(value, axis=0)
             yield [np.array(value, dtype=np.float32, ndmin=3)]
 
     converter.representative_dataset = representative_dataset_generator
     tflite_model_quantized = converter.convert()
+
+    debugger = tf.lite.experimental.QuantizationDebugger(
+        converter=converter, debug_dataset=representative_dataset_generator)
+    debugger.run()
+    with open(os.path.join(save_path, 'debug.csv'), 'w') as f:
+        debugger.layer_statistics_dump(f)
 
     open(tflite_quantized_save_path, "wb").write(tflite_model_quantized)
 

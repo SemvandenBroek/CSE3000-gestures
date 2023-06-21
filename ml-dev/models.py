@@ -5,7 +5,18 @@ from keras import layers
 from utils import Gestures
 
 
-def build_lstm_stateless_model(input_shape, lstm_units=64, dense_1_units=64, dense_1=False, dropout=True, bidirectional=False,
+def build_simple_model(input_shape, num_classes=len(Gestures)):
+    model = keras.Sequential(name="Simple")
+    model.add(layers.Input(shape=input_shape, dtype=np.float32, name="input"))
+    model.add(layers.Dense(64, activation='relu'))
+    model.add(layers.Flatten())
+    model.add(layers.Dense(num_classes, activation="softmax", name="predictions"))
+
+    return model
+
+
+def build_lstm_stateless_model(input_shape, lstm_units=64, dense_1_units=64, dense_1=False, dropout=True,
+                               bidirectional=False,
                                num_classes=len(Gestures)):
     # https://towardsdatascience.com/time-series-classification-for-human-activity-recognition-with-lstms-using-tensorflow-2-and-keras-b816431afdff
     model = keras.Sequential(name="LSTM_Stateless")
