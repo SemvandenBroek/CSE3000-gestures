@@ -1,0 +1,9 @@
+op_name,tensor_idx,num_elements,stddev,mean_error,max_abs_error,mean_squared_error,scale,zero_point,tensor_name
+REVERSE_V2,62,300.0,0.0,0.0,0.0,0.0,1.8470588,-128,tfl.reverse_v2
+UNIDIRECTIONAL_SEQUENCE_LSTM,78,6400.0,0.007424036,0.00015069988,0.08380095,8.366169e-05,0.007843138,-1,tfl.unidirectional_sequence_lstm
+REVERSE_V2,82,6400.0,0.0,0.0,0.0,0.0,0.007843138,-1,LSTM_Stateless/bidirectional/ReverseV2
+UNIDIRECTIONAL_SEQUENCE_LSTM,98,6400.0,0.00833425,5.568898e-05,0.092492886,0.0001217615,0.007843138,-1,tfl.unidirectional_sequence_lstm1
+CONCATENATION,102,12800.0,0.0,0.0,0.0,0.0,0.007843138,-1,LSTM_Stateless/bidirectional/concat
+RESHAPE,106,12800.0,0.0,0.0,0.0,0.0,0.007843138,-1,LSTM_Stateless/flatten_2/Reshape
+FULLY_CONNECTED,110,10.0,0.41357815,0.09798187,1.1924895,1.4996078,0.42819265,-9,LSTM_Stateless/predictions/MatMul;LSTM_Stateless/predictions/BiasAdd
+SOFTMAX,114,10.0,0.0008724262,-0.00025234386,0.0027162302,9.899488e-07,0.00390625,-128,StatefulPartitionedCall:0

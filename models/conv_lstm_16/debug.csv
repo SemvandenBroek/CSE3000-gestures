@@ -1,0 +1,10 @@
+op_name,tensor_idx,num_elements,stddev,mean_error,max_abs_error,mean_squared_error,scale,zero_point,tensor_name
+RESHAPE,50,300.0,0.6016438,0.06856569,0.92107713,0.49340945,1.8470588,-128,Conv_LSTM/time_distributed_1/Reshape;Conv_LSTM/time_distributed/Reshape_1;Conv_LSTM/time_distributed/reshape_1/Reshape;Conv_LSTM/time_distributed/Reshape;Conv_LSTM/reshape/Reshape
+CONV_2D,54,20480.0,0.059911445,-0.010945321,0.21227497,0.0038900303,0.42082447,-128,Conv_LSTM/time_distributed_1/conv2d/Relu;Conv_LSTM/time_distributed_1/conv2d/BiasAdd;Conv_LSTM/time_distributed_2/conv2d_1/Conv2D;Conv_LSTM/time_distributed_1/conv2d/Conv2D;Conv_LSTM/time_distributed_1/conv2d/BiasAdd/ReadVariableOp
+CONV_2D,58,7680.0,0.21668759,-0.017147476,1.1096934,0.050762855,2.2201886,-128,Conv_LSTM/time_distributed_2/conv2d_1/Relu;Conv_LSTM/time_distributed_2/conv2d_1/BiasAdd;Conv_LSTM/time_distributed_2/conv2d_1/Conv2D;Conv_LSTM/time_distributed_2/conv2d_1/BiasAdd/ReadVariableOp
+CONV_2D,62,1280.0,0.5571039,-0.013655733,2.682063,0.33509284,5.4214993,-128,Conv_LSTM/time_distributed_3/conv2d_2/Relu;Conv_LSTM/time_distributed_3/conv2d_2/BiasAdd;Conv_LSTM/time_distributed_3/conv2d_2/Conv2D;Conv_LSTM/time_distributed_3/conv2d_2/BiasAdd/ReadVariableOp
+RESHAPE,66,1280.0,0.0,0.0,0.0,0.0,5.4214993,-128,Conv_LSTM/reshape_2/Reshape;Conv_LSTM/time_distributed_3/Reshape_1
+UNIDIRECTIONAL_SEQUENCE_LSTM,82,320.0,0.012856064,0.0024415269,0.07136914,0.00023478156,0.007843138,-1,tfl.unidirectional_sequence_lstm
+STRIDED_SLICE,86,16.0,0.0,0.0,0.0,0.0,0.007843138,-1,tfl.strided_slice
+FULLY_CONNECTED,90,10.0,0.015259408,-0.002713956,0.029531356,0.00028852964,0.05153299,-17,Conv_LSTM/predictions/MatMul;Conv_LSTM/predictions/BiasAdd
+SOFTMAX,94,10.0,0.0010377746,-3.2031552e-05,0.0017747708,1.2560014e-06,0.00390625,-128,StatefulPartitionedCall:0
