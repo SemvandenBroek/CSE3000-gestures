@@ -96,12 +96,14 @@ def compile_all_conv_lstm(retrain):
 
 if __name__ == '__main__':
     arg_parser = argparse.ArgumentParser()
-    arg_parser.add_argument('model', type=str, choices=['test', 'conv_lstm', 'lstm', 'lstm_extra', 'all'],
+    arg_parser.add_argument('model', type=str, choices=['test', 'simple', 'conv_lstm', 'lstm', 'lstm_extra', 'all'],
                             help="Select which type of model to train")
     arg_parser.add_argument("-r", dest='retrain', action="store_true", help="Append -r to retrain the models")
     parsed = arg_parser.parse_args()
 
     match parsed.model:
+        case 'simple':
+            compile_simple(parsed.retrain)
         case 'test':
             compile_conv_lstm(16, parsed.retrain)
         case 'conv_lstm':

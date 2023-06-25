@@ -316,6 +316,7 @@ def kfold_cross_validation(model: keras.Model, full_dataset: dict, num_folds: in
     acc_per_fold = []
     loss_per_fold = []
     confusion_per_fold = []
+    history_per_fold = []
 
     # (dataset, _) = split_new(full_dataset, 1)
     full_dataset.sort(key=lambda x: x['candidate'])
@@ -383,20 +384,21 @@ def kfold_cross_validation(model: keras.Model, full_dataset: dict, num_folds: in
         candidate_test_labels = np.array(candidate_test_labels)
 
         if early_stop:
-            fold_model.fit(candidate_train_data, candidate_train_labels, callbacks=[early_stop_cb],
+            history = fold_model.fit(candidate_train_data, candidate_train_labels, callbacks=[early_stop_cb],
                            batch_size=batch_size, epochs=epochs, verbose=0)
         else:
-            fold_model.fit(candidate_train_data, candidate_train_labels, batch_size=batch_size, epochs=epochs,
+            history = fold_model.fit(candidate_train_data, candidate_train_labels, batch_size=batch_size, epochs=epochs,
                            verbose=0)
         scores = fold_model.evaluate(candidate_test_data, candidate_test_labels, verbose=2)
         predictions = np.argmax(fold_model.predict(candidate_test_data), axis=1)
+        history_per_fold.append(history)
         acc_per_fold.append(scores[1] * 100)
         loss_per_fold.append(scores[0])
         confusion_per_fold.append(confusion_matrix(np.argmax(candidate_test_labels, axis=1), predictions))
 
         fold_num += 1
 
-    return acc_per_fold, loss_per_fold, confusion_per_fold
+    return acc_per_fold, loss_per_fold, confusion_per_fold, history_per_fold
 
 
 def load_all_gestures(base_path, filtered_list=Gestures, shuffle=True):
@@ -441,15 +443,20 @@ def compile_tflite(model: keras.Sequential | None, shape: list, save_dir: str, n
         raise Exception("Could not load model, set retrain=True")
 
     # Convert to tflite model
-    converter = tf.lite.TFLiteConverter.from_saved_model(tf_save_path)
-    # converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    # converter = tf.lite.TFLiteConverter.from_saved_model(tf_save_path)
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS]
     tflite_model = converter.convert()
 
     open(tflite_save_path, "wb").write(tflite_model)
 
+    # Quantize model
+    # converter = tf.lite.TFLiteConverter.from_saved_model(tf_save_path)
+    converter = tf.lite.TFLiteConverter.from_keras_model(model)
+    converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS]
+    # converter.target_spec.supported_types = [tf.float16]
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
-    converter.experimental_new_converter = True
+    converter.experimental_new_converter = False
 
     def representative_dataset_generator():
         for value in representative_dataset[0:500]:

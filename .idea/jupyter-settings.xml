@@ -10,6 +10,13 @@
             <map />
           </authParams2>
         </JupyterConnectionParameters>
+        <JupyterConnectionParameters>
+          <option name="authType" value="notebook" />
+          <option name="urlString" value="http://localhost:8888" />
+          <authParams2>
+            <map />
+          </authParams2>
+        </JupyterConnectionParameters>
       </list>
     </option>
     <option name="moduleParameters">
@@ -17,11 +24,7 @@
         <entry key="$PROJECT_DIR$/.idea/cse3000-gestures.iml">
           <value>
             <JupyterConnectionParameters>
-              <option name="authType" value="notebook" />
-              <option name="urlString" value="http://127.0.0.1:8888" />
-              <authParams2>
-                <map />
-              </authParams2>
+              <option name="managed" value="true" />
             </JupyterConnectionParameters>
           </value>
         </entry>

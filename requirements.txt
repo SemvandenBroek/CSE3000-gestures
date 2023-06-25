@@ -1,0 +1,14 @@
+# New TF version:
+tensorflow==2.12.0
+keras==2.12.0
+
+# Old TF version:
+# tensorflow==2.8.4
+# keras==2.8.0
+
+
+# Extra:
+numpy==1.23.5
+matplotlib==3.7.1
+jupyter==1.0.0
+scikit-learn==1.2.2

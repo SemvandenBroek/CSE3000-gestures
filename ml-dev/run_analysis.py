@@ -49,7 +49,7 @@ def analyze_conv_lstm(gpu):
                 fold_data.get(key).get('folds').setdefault(f, [])
                 for i in range(FOLD_ITERATIONS):
                     log.info("Iteration %d of %d" % (i + 1, FOLD_ITERATIONS))
-                    acc_per_fold, loss_per_fold, confusion_per_fold = kfold_cross_validation(model, gestures,
+                    acc_per_fold, loss_per_fold, confusion_per_fold, history_per_fold = kfold_cross_validation(model, gestures,
                                                                                              num_folds=f.value,
                                                                                              epochs=EPOCHS_CONV_LSTM,
                                                                                              early_stop=False,
@@ -58,7 +58,8 @@ def analyze_conv_lstm(gpu):
                     fold_data.get(key).get('folds').get(f).append({
                         'acc_per_fold': acc_per_fold,
                         'loss_per_fold': loss_per_fold,
-                        'confusion_per_fold': confusion_per_fold
+                        'confusion_per_fold': confusion_per_fold,
+                        'history_per_fold': history_per_fold
                     })
 
                     save_dict(fold_data, 'conv_lstm.pickle')
@@ -88,7 +89,7 @@ def analyze_lstm(gpu):
                 fold_data.get(key).get('folds').setdefault(f, [])
                 for i in range(FOLD_ITERATIONS):
                     log.info("Iteration %d of %d" % (i + 1, FOLD_ITERATIONS))
-                    acc_per_fold, loss_per_fold, confusion_per_fold = kfold_cross_validation(model, gestures,
+                    acc_per_fold, loss_per_fold, confusion_per_fold, history_per_fold = kfold_cross_validation(model, gestures,
                                                                                              num_folds=f.value,
                                                                                              epochs=EPOCHS_LSTM,
                                                                                              early_stop=False,
@@ -97,7 +98,8 @@ def analyze_lstm(gpu):
                     fold_data.get(key).get('folds').get(f).append({
                         'acc_per_fold': acc_per_fold,
                         'loss_per_fold': loss_per_fold,
-                        'confusion_per_fold': confusion_per_fold
+                        'confusion_per_fold': confusion_per_fold,
+                        'history_per_fold': history_per_fold
                     })
 
                     save_dict(fold_data, 'lstm.pickle')
