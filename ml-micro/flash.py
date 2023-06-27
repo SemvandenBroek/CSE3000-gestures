@@ -1,3 +1,6 @@
+# Script to make flashing to the Arduino Nano microcontroller using prebuilt binaries more flexible
+# Author: Sem van den Broek
+
 import sys
 import glob
 from threading import Thread

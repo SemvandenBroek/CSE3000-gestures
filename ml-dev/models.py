@@ -64,8 +64,8 @@ def build_conv_lstm_model(input_shape=(100, 3), num_classes=len(Gestures), lstm_
     model.add(keras.layers.Reshape((20, 64)))
 
     # TODO: Debugging...
-    # model.add(keras.layers.LSTM(lstm_units))
-    model.add(keras.layers.Dense(lstm_units))
+    model.add(keras.layers.LSTM(lstm_units))
+    # model.add(keras.layers.Dense(lstm_units))
 
     model.add(keras.layers.Dropout(0.5))
     model.add(keras.layers.Flatten())
